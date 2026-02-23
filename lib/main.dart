@@ -272,21 +272,32 @@ class _PosHomePageState extends State<PosHomePage> {
                 final stock = double.tryParse(stockController.text) ?? 0;
                 final totalCost = double.tryParse(totalCostController.text) ?? 0;
                 final pricePerUnit = stock > 0 ? (totalCost / stock).toDouble() : 0.0;
+                final ingredientName = nameController.text;
                 setState(() {
-                  _inventory[nameController.text] = Ingredient(
-                    name: nameController.text,
+                  // Add to inventory
+                  _inventory[ingredientName] = Ingredient(
+                    name: ingredientName,
                     stock: stock,
                     unit: unitController.text,
                     purchasePrice: pricePerUnit,
                     totalCost: totalCost,
                   );
+                  // Add to expenses
+                  if (totalCost > 0) {
+                    _expenses.add(ExpenseRecord(
+                      description: 'Inventory: $ingredientName (Initial stock: $stock ${unitController.text})',
+                      amount: totalCost,
+                      date: DateTime.now(),
+                    ));
+                  }
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      '${nameController.text} added!\n'
-                      'Cost: ${formatCurrency(pricePerUnit)} per ${unitController.text}'
+                      '$ingredientName added!\n'
+                      'Cost: ${formatCurrency(pricePerUnit)} per ${unitController.text}\n'
+                      'Added to expenses: ${formatCurrency(totalCost)}'
                     ),
                   ),
                 );
@@ -345,13 +356,20 @@ class _PosHomePageState extends State<PosHomePage> {
                   ing.totalCost += totalCostOfBatch;
                   // Calculate new average price per unit
                   ing.purchasePrice = (ing.totalCost / ing.stock).toDouble();
+                  // Add to expenses
+                  _expenses.add(ExpenseRecord(
+                    description: 'Restock: ${ing.name} (+$amount ${ing.unit})',
+                    amount: totalCostOfBatch,
+                    date: DateTime.now(),
+                  ));
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
                       'Added ${amount.toStringAsFixed(1)} ${ing.unit} for ${formatCurrency(totalCostOfBatch)}.\n'
-                      'New avg: ${formatCurrency(ing.purchasePrice)} per ${ing.unit}'
+                      'New avg: ${formatCurrency(ing.purchasePrice)} per ${ing.unit}\n'
+                      'Added to expenses: ${formatCurrency(totalCostOfBatch)}'
                     ),
                   ),
                 );
