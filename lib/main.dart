@@ -26,8 +26,16 @@ class Ingredient {
   final String name;
   double stock;
   final String unit;
+  double purchasePrice; // Price per unit when bought
+  double totalCost; // Total cost of current stock
 
-  Ingredient({required this.name, required this.stock, required this.unit});
+  Ingredient({
+    required this.name, 
+    required this.stock, 
+    required this.unit,
+    this.purchasePrice = 0.0,
+    this.totalCost = 0.0,
+  });
 }
 
 class RecipeItem {
@@ -88,11 +96,11 @@ class PosHomePage extends StatefulWidget {
 
 class _PosHomePageState extends State<PosHomePage> {
   final Map<String, Ingredient> _inventory = {
-    'Coffee Beans': Ingredient(name: 'Coffee Beans', stock: 1000, unit: 'g'),
-    'Milk': Ingredient(name: 'Milk', stock: 2000, unit: 'ml'),
-    'Sugar': Ingredient(name: 'Sugar', stock: 500, unit: 'g'),
-    'Water': Ingredient(name: 'Water', stock: 5000, unit: 'ml'),
-    'Croissant Dough': Ingredient(name: 'Croissant Dough', stock: 20, unit: 'pcs'),
+    'Coffee Beans': Ingredient(name: 'Coffee Beans', stock: 1000, unit: 'g', purchasePrice: 0.010, totalCost: 10.0),
+    'Milk': Ingredient(name: 'Milk', stock: 2000, unit: 'ml', purchasePrice: 0.002, totalCost: 4.0),
+    'Sugar': Ingredient(name: 'Sugar', stock: 500, unit: 'g', purchasePrice: 0.003, totalCost: 1.5),
+    'Water': Ingredient(name: 'Water', stock: 5000, unit: 'ml', purchasePrice: 0.0001, totalCost: 0.5),
+    'Croissant Dough': Ingredient(name: 'Croissant Dough', stock: 20, unit: 'pcs', purchasePrice: 0.150, totalCost: 3.0),
   };
 
   final List<Product> _products = [
@@ -197,11 +205,15 @@ class _PosHomePageState extends State<PosHomePage> {
             const SizedBox(height: 10),
             Expanded(
               child: ListView(
-                children: _inventory.values.map((ing) => ListTile(
-                  title: Text(ing.name),
-                  trailing: Text('${ing.stock.toStringAsFixed(1)} ${ing.unit}', 
-                    style: TextStyle(fontWeight: FontWeight.bold, color: ing.stock < 100 ? Colors.red : Colors.black)),
-                  onLongPress: () => _restockIngredient(ing),
+                children: _inventory.values.map((ing) => Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(ing.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}\nTotal Value: OMR ${ing.totalCost.toStringAsFixed(2)}'),
+                    trailing: Text('${ing.stock.toStringAsFixed(1)} ${ing.unit}', 
+                      style: TextStyle(fontWeight: FontWeight.bold, color: ing.stock < 100 ? Colors.red : Colors.black)),
+                    onLongPress: () => _restockIngredient(ing),
+                  ),
                 )).toList(),
               ),
             ),
@@ -215,6 +227,7 @@ class _PosHomePageState extends State<PosHomePage> {
     final nameController = TextEditingController();
     final stockController = TextEditingController();
     final unitController = TextEditingController();
+    final priceController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -224,7 +237,15 @@ class _PosHomePageState extends State<PosHomePage> {
           children: [
             TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
             TextField(controller: stockController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Initial Stock')),
-            TextField(controller: unitController, decoration: const InputDecoration(labelText: 'Unit')),
+            TextField(controller: unitController, decoration: const InputDecoration(labelText: 'Unit (g, ml, pcs, etc.)')),
+            TextField(
+              controller: priceController, 
+              keyboardType: TextInputType.number, 
+              decoration: const InputDecoration(
+                labelText: 'Purchase Price per Unit (OMR)',
+                hintText: 'How much did you pay per unit?',
+              ),
+            ),
           ],
         ),
         actions: [
@@ -232,14 +253,22 @@ class _PosHomePageState extends State<PosHomePage> {
           TextButton(
             onPressed: () {
               if (nameController.text.isNotEmpty) {
+                final stock = double.tryParse(stockController.text) ?? 0;
+                final pricePerUnit = double.tryParse(priceController.text) ?? 0;
+                final totalCost = stock * pricePerUnit;
                 setState(() {
                   _inventory[nameController.text] = Ingredient(
                     name: nameController.text,
-                    stock: double.tryParse(stockController.text) ?? 0,
+                    stock: stock,
                     unit: unitController.text,
+                    purchasePrice: pricePerUnit,
+                    totalCost: totalCost,
                   );
                 });
                 Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${nameController.text} added! Total cost: OMR ${totalCost.toStringAsFixed(2)}')),
+                );
               }
             },
             child: const Text('Save'),
@@ -250,27 +279,60 @@ class _PosHomePageState extends State<PosHomePage> {
   }
 
   void _restockIngredient(Ingredient ing) {
-    final controller = TextEditingController();
+    final amountController = TextEditingController();
+    final priceController = TextEditingController(text: ing.purchasePrice > 0 ? ing.purchasePrice.toString() : '');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Restock ${ing.name}'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: 'Amount (${ing.unit})'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Current stock: ${ing.stock.toStringAsFixed(1)} ${ing.unit}\n'
+              'Current cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'Amount to add (${ing.unit})'),
+            ),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Purchase Price per Unit (OMR)',
+                hintText: 'What did you pay for this batch?',
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              final val = double.tryParse(controller.text);
-              if (val != null) {
-                setState(() => ing.stock += val);
+              final amount = double.tryParse(amountController.text);
+              final pricePerUnit = double.tryParse(priceController.text);
+              if (amount != null && amount > 0 && pricePerUnit != null) {
+                final newCost = amount * pricePerUnit;
+                setState(() {
+                  // Update stock
+                  ing.stock += amount;
+                  // Update average purchase price (weighted average)
+                  final oldTotalCost = ing.totalCost;
+                  final newTotalCost = oldTotalCost + newCost;
+                  ing.totalCost = newTotalCost;
+                  ing.purchasePrice = newTotalCost / ing.stock;
+                });
                 Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Added ${amount.toStringAsFixed(1)} ${ing.unit} of ${ing.name}. New avg cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}')),
+                );
               }
             },
-            child: const Text('Add'),
+            child: const Text('Add Stock'),
           ),
         ],
       ),
