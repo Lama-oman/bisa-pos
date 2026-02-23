@@ -538,32 +538,112 @@ class _PosHomePageState extends State<PosHomePage> {
   void _showReports() {
     final totalSales = _sales.fold(0.0, (sum, sale) => sum + sale.total);
     final totalExpenses = _expenses.fold(0.0, (sum, exp) => sum + exp.amount);
+    final profit = totalSales - totalExpenses;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Business Report', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            _reportTile('Total Revenue', totalSales, Colors.green),
-            _reportTile('Total Expenses', totalExpenses, Colors.red),
-            const Divider(),
-            const Text('Sales History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _sales.length,
-                itemBuilder: (context, i) => ListTile(
-                  title: Text('Sale #${i + 1}'),
-                  subtitle: Text(_sales[i].date.toString().substring(0, 16)),
-                  trailing: Text('OMR ${_sales[i].total.toStringAsFixed(2)}'),
+      builder: (context) => DefaultTabController(
+        length: 2,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Business Report', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              _reportTile('Total Revenue', totalSales, Colors.green),
+              _reportTile('Total Expenses', totalExpenses, Colors.red),
+              _reportTile('Net Profit', profit, profit >= 0 ? Colors.blue : Colors.orange),
+              const Divider(),
+              const TabBar(
+                tabs: [
+                  Tab(icon: Icon(Icons.attach_money), text: 'Sales'),
+                  Tab(icon: Icon(Icons.money_off), text: 'Expenses'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    // Sales Tab
+                    _sales.isEmpty
+                      ? const Center(child: Text('No sales yet', style: TextStyle(color: Colors.grey)))
+                      : ListView.builder(
+                          itemCount: _sales.length,
+                          itemBuilder: (context, i) {
+                            final sale = _sales[_sales.length - 1 - i]; // Reverse order (newest first)
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: Colors.green,
+                                  child: Icon(Icons.sell, color: Colors.white, size: 16),
+                                ),
+                                title: Text('Sale #${_sales.length - i}'),
+                                subtitle: Text(sale.date.toString().substring(0, 16)),
+                                trailing: Text(
+                                  formatCurrency(sale.total),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                                onTap: () {
+                                  // Show sale details
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Text('Sale #${_sales.length - i} Details'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Date: ${sale.date.toString().substring(0, 16)}'),
+                                          const Divider(),
+                                          ...sale.items.map((item) => Text(
+                                            '${item.product.name} x${item.quantity} = ${formatCurrency(item.product.price * item.quantity)}'
+                                          )).toList(),
+                                          const Divider(),
+                                          Text('Total: ${formatCurrency(sale.total)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                    // Expenses Tab
+                    _expenses.isEmpty
+                      ? const Center(child: Text('No expenses yet', style: TextStyle(color: Colors.grey)))
+                      : ListView.builder(
+                          itemCount: _expenses.length,
+                          itemBuilder: (context, i) {
+                            final expense = _expenses[_expenses.length - 1 - i]; // Reverse order (newest first)
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: Colors.red,
+                                  child: Icon(Icons.shopping_cart, color: Colors.white, size: 16),
+                                ),
+                                title: Text(expense.description),
+                                subtitle: Text(expense.date.toString().substring(0, 16)),
+                                trailing: Text(
+                                  formatCurrency(expense.amount),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
