@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 
-String formatOMR(double amount) {
-  // Format as OMR with 3 decimal places (for Baisa precision)
+String formatCurrency(double amount) {
+  // Format as OMR with 3 decimal places (for Baisa precision: 1 OMR = 1000 Baisa)
+  // Example: 7 → OMR 7.000, 0.9 → OMR 0.900
   return 'OMR ${amount.toStringAsFixed(3)}';
-}
-
-String formatBaisa(double amount) {
-  // Convert OMR to Baisa (1 OMR = 1000 Baisa)
-  final baisa = (amount * 1000).toInt();
-  return '$baisa Baisa';
 }
 
 void main() {
@@ -221,8 +216,8 @@ class _PosHomePageState extends State<PosHomePage> {
                   child: ListTile(
                     title: Text(ing.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(
-                      'Cost: ${formatOMR(ing.purchasePrice)}/${ing.unit} (${formatBaisa(ing.purchasePrice)})\n'
-                      'Total: ${formatOMR(ing.totalCost)} (${formatBaisa(ing.totalCost)})'
+                      'Cost: ${formatCurrency(ing.purchasePrice)}/${ing.unit}\n'
+                      'Total value: ${formatCurrency(ing.totalCost)}'
                     ),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -291,7 +286,7 @@ class _PosHomePageState extends State<PosHomePage> {
                   SnackBar(
                     content: Text(
                       '${nameController.text} added!\n'
-                      'Cost: ${formatOMR(pricePerUnit)} per ${unitController.text} (${formatBaisa(pricePerUnit)})'
+                      'Cost: ${formatCurrency(pricePerUnit)} per ${unitController.text}'
                     ),
                   ),
                 );
@@ -316,8 +311,8 @@ class _PosHomePageState extends State<PosHomePage> {
           children: [
             Text(
               'Current stock: ${ing.stock.toStringAsFixed(1)} ${ing.unit}\n'
-              'Avg cost: ${formatOMR(ing.purchasePrice)} per ${ing.unit} (${formatBaisa(ing.purchasePrice)})\n'
-              'Total value: ${formatOMR(ing.totalCost)} (${formatBaisa(ing.totalCost)})',
+              'Avg cost: ${formatCurrency(ing.purchasePrice)} per ${ing.unit}\n'
+              'Total value: ${formatCurrency(ing.totalCost)}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 10),
@@ -355,8 +350,8 @@ class _PosHomePageState extends State<PosHomePage> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Added ${amount.toStringAsFixed(1)} ${ing.unit} for ${formatOMR(totalCostOfBatch)} (${formatBaisa(totalCostOfBatch)}).\n'
-                      'New avg: ${formatOMR(ing.purchasePrice)} per ${ing.unit} (${formatBaisa(ing.purchasePrice)})'
+                      'Added ${amount.toStringAsFixed(1)} ${ing.unit} for ${formatCurrency(totalCostOfBatch)}.\n'
+                      'New avg: ${formatCurrency(ing.purchasePrice)} per ${ing.unit}'
                     ),
                   ),
                 );
