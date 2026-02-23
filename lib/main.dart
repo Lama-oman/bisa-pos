@@ -265,7 +265,7 @@ class _PosHomePageState extends State<PosHomePage> {
               if (nameController.text.isNotEmpty) {
                 final stock = double.tryParse(stockController.text) ?? 0;
                 final totalCost = double.tryParse(totalCostController.text) ?? 0;
-                final pricePerUnit = stock > 0 ? totalCost / stock : 0;
+                final pricePerUnit = stock > 0 ? (totalCost / stock).toDouble() : 0.0;
                 setState(() {
                   _inventory[nameController.text] = Ingredient(
                     name: nameController.text,
@@ -327,14 +327,13 @@ class _PosHomePageState extends State<PosHomePage> {
               final amount = double.tryParse(amountController.text);
               final totalCostOfBatch = double.tryParse(totalCostController.text);
               if (amount != null && amount > 0 && totalCostOfBatch != null && totalCostOfBatch > 0) {
-                final pricePerUnitOfBatch = amount > 0 ? totalCostOfBatch / amount : 0;
                 setState(() {
                   // Update stock
                   ing.stock += amount;
                   // Update total cost
                   ing.totalCost += totalCostOfBatch;
                   // Calculate new average price per unit
-                  ing.purchasePrice = ing.totalCost / ing.stock;
+                  ing.purchasePrice = (ing.totalCost / ing.stock).toDouble();
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
