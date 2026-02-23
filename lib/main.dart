@@ -209,9 +209,19 @@ class _PosHomePageState extends State<PosHomePage> {
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: ListTile(
                     title: Text(ing.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}\nTotal Value: OMR ${ing.totalCost.toStringAsFixed(2)}'),
-                    trailing: Text('${ing.stock.toStringAsFixed(1)} ${ing.unit}', 
-                      style: TextStyle(fontWeight: FontWeight.bold, color: ing.stock < 100 ? Colors.red : Colors.black)),
+                    subtitle: Text(
+                      'Avg cost: OMR ${ing.purchasePrice.toStringAsFixed(3)}/${ing.unit}\n'
+                      'Total value: OMR ${ing.totalCost.toStringAsFixed(2)}'
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${ing.stock.toStringAsFixed(1)} ${ing.unit}', 
+                          style: TextStyle(fontWeight: FontWeight.bold, color: ing.stock < 100 ? Colors.red : Colors.black)),
+                        Text('Long press to restock', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
                     onLongPress: () => _restockIngredient(ing),
                   ),
                 )).toList(),
@@ -227,7 +237,7 @@ class _PosHomePageState extends State<PosHomePage> {
     final nameController = TextEditingController();
     final stockController = TextEditingController();
     final unitController = TextEditingController();
-    final priceController = TextEditingController();
+    final totalCostController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -239,11 +249,11 @@ class _PosHomePageState extends State<PosHomePage> {
             TextField(controller: stockController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Initial Stock')),
             TextField(controller: unitController, decoration: const InputDecoration(labelText: 'Unit (g, ml, pcs, etc.)')),
             TextField(
-              controller: priceController, 
+              controller: totalCostController, 
               keyboardType: TextInputType.number, 
               decoration: const InputDecoration(
-                labelText: 'Purchase Price per Unit (OMR)',
-                hintText: 'How much did you pay per unit?',
+                labelText: 'Total Bill Amount (OMR)',
+                hintText: 'What was the total on the invoice?',
               ),
             ),
           ],
@@ -254,8 +264,8 @@ class _PosHomePageState extends State<PosHomePage> {
             onPressed: () {
               if (nameController.text.isNotEmpty) {
                 final stock = double.tryParse(stockController.text) ?? 0;
-                final pricePerUnit = double.tryParse(priceController.text) ?? 0;
-                final totalCost = stock * pricePerUnit;
+                final totalCost = double.tryParse(totalCostController.text) ?? 0;
+                final pricePerUnit = stock > 0 ? totalCost / stock : 0;
                 setState(() {
                   _inventory[nameController.text] = Ingredient(
                     name: nameController.text,
@@ -267,7 +277,7 @@ class _PosHomePageState extends State<PosHomePage> {
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${nameController.text} added! Total cost: OMR ${totalCost.toStringAsFixed(2)}')),
+                  SnackBar(content: Text('${nameController.text} added! Price per ${unitController.text}: OMR ${pricePerUnit.toStringAsFixed(3)}')),
                 );
               }
             },
@@ -280,7 +290,7 @@ class _PosHomePageState extends State<PosHomePage> {
 
   void _restockIngredient(Ingredient ing) {
     final amountController = TextEditingController();
-    final priceController = TextEditingController(text: ing.purchasePrice > 0 ? ing.purchasePrice.toString() : '');
+    final totalCostController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -290,7 +300,8 @@ class _PosHomePageState extends State<PosHomePage> {
           children: [
             Text(
               'Current stock: ${ing.stock.toStringAsFixed(1)} ${ing.unit}\n'
-              'Current cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}',
+              'Current avg cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}\n'
+              'Current total value: OMR ${ing.totalCost.toStringAsFixed(2)}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 10),
@@ -300,11 +311,11 @@ class _PosHomePageState extends State<PosHomePage> {
               decoration: InputDecoration(labelText: 'Amount to add (${ing.unit})'),
             ),
             TextField(
-              controller: priceController,
+              controller: totalCostController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Purchase Price per Unit (OMR)',
-                hintText: 'What did you pay for this batch?',
+                labelText: 'Total Bill Amount (OMR)',
+                hintText: 'What was the total on the invoice?',
               ),
             ),
           ],
@@ -314,21 +325,25 @@ class _PosHomePageState extends State<PosHomePage> {
           TextButton(
             onPressed: () {
               final amount = double.tryParse(amountController.text);
-              final pricePerUnit = double.tryParse(priceController.text);
-              if (amount != null && amount > 0 && pricePerUnit != null) {
-                final newCost = amount * pricePerUnit;
+              final totalCostOfBatch = double.tryParse(totalCostController.text);
+              if (amount != null && amount > 0 && totalCostOfBatch != null && totalCostOfBatch > 0) {
+                final pricePerUnitOfBatch = amount > 0 ? totalCostOfBatch / amount : 0;
                 setState(() {
                   // Update stock
                   ing.stock += amount;
-                  // Update average purchase price (weighted average)
-                  final oldTotalCost = ing.totalCost;
-                  final newTotalCost = oldTotalCost + newCost;
-                  ing.totalCost = newTotalCost;
-                  ing.purchasePrice = newTotalCost / ing.stock;
+                  // Update total cost
+                  ing.totalCost += totalCostOfBatch;
+                  // Calculate new average price per unit
+                  ing.purchasePrice = ing.totalCost / ing.stock;
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Added ${amount.toStringAsFixed(1)} ${ing.unit} of ${ing.name}. New avg cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}')),
+                  SnackBar(
+                    content: Text(
+                      'Added ${amount.toStringAsFixed(1)} ${ing.unit} for OMR ${totalCostOfBatch.toStringAsFixed(2)}.\n'
+                      'New avg cost: OMR ${ing.purchasePrice.toStringAsFixed(3)} per ${ing.unit}'
+                    ),
+                  ),
                 );
               }
             },
